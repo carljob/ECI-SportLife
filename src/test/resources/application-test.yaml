@@ -1,0 +1,13 @@
+# Configuración exclusiva para tests
+spring:
+  data:
+    mongodb:
+      # Flapdoodle embedded mongo se configura automáticamente en tests
+      # Este valor es ignorado cuando flapdoodle está en el classpath de test
+      uri: mongodb://localhost:27017/sportlife-test
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  h2:
+    console:
+      enabled: false

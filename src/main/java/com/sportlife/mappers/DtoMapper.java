@@ -1,22 +1,13 @@
 package com.sportlife.mappers;
 
-import com.sportlife.core.models.Cart;
-import com.sportlife.core.models.CartItem;
-import com.sportlife.core.models.Order;
-import com.sportlife.core.models.Payment;
-import com.sportlife.core.models.Product;
-import com.sportlife.dtos.response.CartItemResponse;
-import com.sportlife.dtos.response.CartResponse;
-import com.sportlife.dtos.response.OrderResponse;
-import com.sportlife.dtos.response.PaymentResponse;
-import com.sportlife.dtos.response.ProductResponse;
+import com.sportlife.core.models.*;
+import com.sportlife.dtos.response.*;
 import java.math.BigDecimal;
 import java.util.stream.Collectors;
 
 public final class DtoMapper {
 
-    private DtoMapper() {
-    }
+    private DtoMapper() {}
 
     public static ProductResponse toResponse(Product product) {
         return ProductResponse.builder()
@@ -26,6 +17,7 @@ public final class DtoMapper {
             .description(product.getDescription())
             .price(product.getPrice())
             .stock(product.getStock())
+            .active(product.isActive())
             .build();
     }
 
@@ -47,6 +39,7 @@ public final class DtoMapper {
             .productName(item.getProductName())
             .quantity(item.getQuantity())
             .unitPrice(item.getUnitPrice())
+            .subtotal(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
             .build();
     }
 
@@ -64,9 +57,10 @@ public final class DtoMapper {
         return PaymentResponse.builder()
             .orderId(payment.getOrderId())
             .paymentId(payment.getId())
+            .method(payment.getMethod())
+            .amount(payment.getAmount())
             .approved(payment.isApproved())
             .status(status)
             .build();
     }
 }
-

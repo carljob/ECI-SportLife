@@ -1,11 +1,9 @@
 package com.sportlife.dtos.response;
 
 import java.math.BigDecimal;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
-@Data
-@Builder
+@Data @Builder
 public class ProductResponse {
     private Long id;
     private String name;
@@ -13,5 +11,5 @@ public class ProductResponse {
     private String description;
     private BigDecimal price;
     private Integer stock;
+    private boolean active;
 }
-

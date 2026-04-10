@@ -17,26 +17,27 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<Product> listProducts() {
-        return productRepository.findAll().stream().map(ProductPersistenceMapper::toModel).collect(Collectors.toList());
+        // Solo devuelve productos activos
+        return productRepository.findByActiveTrue()
+            .stream().map(ProductPersistenceMapper::toModel).collect(Collectors.toList());
     }
 
     @Override
     public List<Product> searchByName(String name) {
-        return productRepository.findByNameContainingIgnoreCase(name).stream()
-            .map(ProductPersistenceMapper::toModel).collect(Collectors.toList());
+        return productRepository.findByNameContainingIgnoreCaseAndActiveTrue(name)
+            .stream().map(ProductPersistenceMapper::toModel).collect(Collectors.toList());
     }
 
     @Override
     public List<Product> filterByCategory(String category) {
-        return productRepository.findByCategoryIgnoreCase(category).stream()
-            .map(ProductPersistenceMapper::toModel).collect(Collectors.toList());
+        return productRepository.findByCategoryIgnoreCaseAndActiveTrue(category)
+            .stream().map(ProductPersistenceMapper::toModel).collect(Collectors.toList());
     }
 
     @Override
     public Product getDetail(Long id) {
         return productRepository.findById(id)
             .map(ProductPersistenceMapper::toModel)
-            .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado: " + id));
     }
 }
-

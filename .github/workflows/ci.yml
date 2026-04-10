@@ -1,0 +1,176 @@
+name: SportLife CI/CD Pipeline
+
+# Disparadores del pipeline
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ develop, main ]
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # JOB 1: BUILD — Compilar el proyecto
+  # ══════════════════════════════════════════════════════════════════
+  build:
+    name: 🔨 Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Compilar con Maven
+        run: mvn clean compile -B -q
+
+      - name: Guardar clases compiladas
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-classes
+          path: target/
+          retention-days: 1
+
+  # ══════════════════════════════════════════════════════════════════
+  # JOB 2: TEST — Ejecutar pruebas unitarias e integración
+  # ══════════════════════════════════════════════════════════════════
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Ejecutar pruebas (Flapdoodle maneja MongoDB embebido)
+        run: mvn test -B
+
+      - name: Publicar reporte JUnit
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: target/surefire-reports/
+
+      - name: Publicar cobertura (si existe)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: target/site/jacoco/
+          if-no-files-found: ignore
+
+  # ══════════════════════════════════════════════════════════════════
+  # JOB 3: ANALYSIS — SonarQube / SonarCloud
+  # ══════════════════════════════════════════════════════════════════
+  analysis:
+    name: 🔍 SonarQube Analysis
+    runs-on: ubuntu-latest
+    needs: test
+    # Solo analizar en push (no en PRs para ahorrar minutos en repos públicos)
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Historial completo requerido por SonarQube
+
+      - name: Configurar Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Analizar con SonarQube
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mvn verify sonar:sonar \
+            -Dsonar.projectKey=sportlife-api \
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+            -B -q
+
+  # ══════════════════════════════════════════════════════════════════
+  # JOB 4: PACKAGE — Empaquetar el JAR
+  # ══════════════════════════════════════════════════════════════════
+  package:
+    name: 📦 Package
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Empaquetar JAR (sin tests ya ejecutados)
+        run: mvn clean package -DskipTests -B
+
+      - name: Guardar JAR como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: sportlife-jar
+          path: target/sportlife-api-*.jar
+          retention-days: 7
+
+  # ══════════════════════════════════════════════════════════════════
+  # JOB 5: DEPLOY — Azure App Service
+  # Solo se ejecuta en push a develop o main
+  # ══════════════════════════════════════════════════════════════════
+  deploy:
+    name: 🚀 Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: [ analysis, package ]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+      url: https://sportlife-api.azurewebsites.net
+
+    steps:
+      - name: Descargar JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: sportlife-jar
+          path: target/
+
+      - name: Login en Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy a Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: sportlife-api
+          package: target/sportlife-api-*.jar
+
+      - name: Health check post-deploy
+        run: |
+          sleep 30
+          curl -f https://sportlife-api.azurewebsites.net/actuator/health \
+            || echo "Health check falló — revisar logs en Azure"

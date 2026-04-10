@@ -1,15 +1,9 @@
 package com.sportlife.core.models;
 
 import java.math.BigDecimal;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class Product {
     private Long id;
     private String name;
@@ -17,5 +11,6 @@ public class Product {
     private String description;
     private BigDecimal price;
     private Integer stock;
+    @Builder.Default
+    private boolean active = true;
 }
-

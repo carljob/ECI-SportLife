@@ -1,24 +1,34 @@
 package com.sportlife.persistence.entities;
 
 import java.math.BigDecimal;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import lombok.Data;
 
 @Data
 @Entity
 @Table(name = "products")
 public class ProductEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String name;
-    private String category;
-    private String description;
-    private BigDecimal price;
-    private Integer stock;
-}
 
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
+    private String category;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(nullable = false, precision = 15, scale = 2)
+    private BigDecimal price;
+
+    @Column(nullable = false)
+    private Integer stock;
+
+    /** Estado del producto: true = activo, false = inactivo */
+    @Column(nullable = false)
+    private boolean active = true;
+}

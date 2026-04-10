@@ -30,6 +30,11 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final ProductRepository productRepository;
     private final PaymentRepository paymentRepository;
 
+    /**
+     * Crea una orden a partir del carrito del usuario y descuenta el stock.
+     * Operación transaccional: si falla el descuento de cualquier producto
+     * se hace rollback completo (ningún stock se modifica).
+     */
     @Override
     @Transactional
     public Order checkout(Long userId) {
@@ -38,28 +43,37 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw new BusinessException("El carrito esta vacio");
         }
 
+        // Calcular total
+        BigDecimal total = cart.getItems().stream()
+            .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Construir items de la orden
+        var orderItems = cart.getItems().stream().map(item -> OrderItem.builder()
+            .productId(item.getProductId())
+            .productName(item.getProductName())
+            .quantity(item.getQuantity())
+            .unitPrice(item.getUnitPrice())
+            .build()).collect(Collectors.toList());
+
         Order order = Order.builder()
             .userId(userId)
-            .items(cart.getItems().stream().map(item -> OrderItem.builder()
-                .productId(item.getProductId())
-                .productName(item.getProductName())
-                .quantity(item.getQuantity())
-                .unitPrice(item.getUnitPrice())
-                .build()).collect(Collectors.toList()))
-            .total(cart.getItems().stream()
-                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add))
+            .items(orderItems)
+            .total(total)
             .status(OrderStatus.PENDING)
             .createdAt(LocalDateTime.now())
             .build();
 
-        // Atomic-like stock update per item for MVP scope.
+        // Descontar stock de forma transaccional
         order.getItems().forEach(item -> {
             var product = productRepository.findById(item.getProductId())
-                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    "Producto no encontrado: " + item.getProductId()));
             int remaining = product.getStock() - item.getQuantity();
             if (remaining < 0) {
-                throw new BusinessException("Stock insuficiente para " + product.getName());
+                throw new BusinessException(
+                    "Stock insuficiente para: " + product.getName()
+                    + " (disponible: " + product.getStock() + ")");
             }
             product.setStock(remaining);
             productRepository.save(product);
@@ -70,29 +84,33 @@ public class CheckoutServiceImpl implements CheckoutService {
         return OrderPersistenceMapper.toModel(saved);
     }
 
+    /**
+     * Procesa el pago de una orden existente.
+     * Si el monto es suficiente → PAID.
+     * Si el monto es insuficiente → REJECTED (stock NO se revierte en MVP).
+     */
     @Override
     @Transactional
     public Payment processPayment(Long orderId, String method, BigDecimal amount) {
         OrderEntity orderEntity = orderRepository.findById(orderId)
-            .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + orderId));
 
-        if (amount.compareTo(orderEntity.getTotal()) < 0) {
-            throw new BusinessException("El monto es menor al total de la orden");
-        }
+        boolean approved = amount.compareTo(orderEntity.getTotal()) >= 0;
 
         Payment payment = Payment.builder()
             .orderId(orderId)
             .method(method)
             .amount(amount)
-            .approved(true)
+            .approved(approved)
             .build();
 
-        PaymentDocument savedPayment = paymentRepository.save(PaymentPersistenceMapper.toDocument(payment));
-        orderEntity.setStatus(OrderStatus.PAID);
+        PaymentDocument savedPayment = paymentRepository.save(
+            PaymentPersistenceMapper.toDocument(payment));
+
+        // Actualizar estado de la orden según resultado del pago
+        orderEntity.setStatus(approved ? OrderStatus.PAID : OrderStatus.REJECTED);
         orderRepository.save(orderEntity);
 
         return PaymentPersistenceMapper.toModel(savedPayment);
     }
 }
-
-
