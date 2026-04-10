@@ -23,16 +23,19 @@ public class CartController {
 
     private final CartService cartService;
 
+    /** Requisito del enunciado: agregar productos al carrito. */
     @PostMapping("/{userId}/items")
     public ResponseEntity<CartResponse> addItem(@PathVariable Long userId, @Valid @RequestBody AddToCartRequest request) {
         return ResponseEntity.ok(DtoMapper.toResponse(cartService.addProduct(userId, request.getProductId(), request.getQuantity())));
     }
 
+    /** Requisito del enunciado: ver resumen de carrito (items, cantidades, subtotales y total). */
     @GetMapping("/{userId}")
     public ResponseEntity<CartResponse> getCart(@PathVariable Long userId) {
         return ResponseEntity.ok(DtoMapper.toResponse(cartService.getCart(userId)));
     }
 
+    /** Requisito del enunciado: actualizar cantidad de un item en carrito. */
     @PatchMapping("/{userId}/items")
     public ResponseEntity<CartResponse> updateQuantity(@PathVariable Long userId, @Valid @RequestBody UpdateCartItemRequest request) {
         return ResponseEntity.ok(DtoMapper.toResponse(cartService.updateQuantity(userId, request.getProductId(), request.getQuantity())));

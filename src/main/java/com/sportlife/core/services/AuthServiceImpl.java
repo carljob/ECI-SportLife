@@ -18,12 +18,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public User register(String fullName, String email, String password) {
-        // Validar que el email no esté registrado
+        // Regla de negocio: email único en registro.
         userRepository.findByEmail(email).ifPresent(u -> {
             throw new BusinessException("El email ya esta registrado");
         });
 
-        // Validación extra de contraseña
+        // Regla de negocio: contraseña mínima para creación de cuenta.
         if (password == null || password.trim().length() < 6) {
             throw new BusinessException("La contraseña debe tener al menos 6 caracteres");
         }
@@ -37,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String login(String email, String password) {
+        // Mensaje genérico para no revelar si falló email o password.
         UserEntity user = userRepository.findByEmail(email.toLowerCase().trim())
             .orElseThrow(() -> new BusinessException("Credenciales invalidas"));
 

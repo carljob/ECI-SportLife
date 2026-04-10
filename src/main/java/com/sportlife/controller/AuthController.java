@@ -20,6 +20,10 @@ public class AuthController {
 
     private final AuthService authService;
 
+    /**
+     * Requisito del enunciado: registro de usuario.
+     * Crea la cuenta y retorna un token inicial para continuar el flujo.
+     */
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterUserRequest request) {
         User user = authService.register(request.getFullName(), request.getEmail(), request.getPassword());
@@ -27,6 +31,10 @@ public class AuthController {
         return ResponseEntity.ok(AuthResponse.builder().userId(user.getId()).token(token).build());
     }
 
+    /**
+     * Requisito del enunciado: autenticación/login.
+     * Valida credenciales y emite token para endpoints protegidos.
+     */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         String token = authService.login(request.getEmail(), request.getPassword());

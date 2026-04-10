@@ -22,11 +22,19 @@ public class CheckoutController {
 
     private final CheckoutService checkoutService;
 
+    /**
+     * Requisito: iniciar checkout.
+     * Valida el carrito y crea una orden de compra en estado PENDING.
+     */
     @PostMapping
     public ResponseEntity<OrderResponse> checkout(@Valid @RequestBody CheckoutRequest request) {
         return ResponseEntity.ok(DtoMapper.toResponse(checkoutService.checkout(request.getUserId())));
     }
 
+    /**
+     * Requisito: procesar pago de una orden.
+     * Devuelve resultado de aprobación/rechazo según reglas del servicio.
+     */
     @PostMapping("/payment")
     public ResponseEntity<PaymentResponse> processPayment(@Valid @RequestBody ProcessPaymentRequest request) {
         Payment payment = checkoutService.processPayment(request.getOrderId(), request.getMethod(), request.getAmount());

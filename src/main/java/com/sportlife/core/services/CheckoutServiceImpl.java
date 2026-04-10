@@ -39,6 +39,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Transactional
     public Order checkout(Long userId) {
         Cart cart = cartService.getCart(userId);
+        // Regla de negocio: no se permite checkout con carrito vacío.
         if (cart.getItems().isEmpty()) {
             throw new BusinessException("El carrito esta vacio");
         }
@@ -79,7 +80,9 @@ public class CheckoutServiceImpl implements CheckoutService {
             productRepository.save(product);
         });
 
+        // Se persiste la orden ya con estado PENDING.
         OrderEntity saved = orderRepository.save(OrderPersistenceMapper.toEntity(order));
+        // El carrito se limpia después de crear la orden.
         cartService.clearCart(userId);
         return OrderPersistenceMapper.toModel(saved);
     }
@@ -95,6 +98,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         OrderEntity orderEntity = orderRepository.findById(orderId)
             .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + orderId));
 
+        // Aprobación basada en monto enviado vs total de la orden.
         boolean approved = amount.compareTo(orderEntity.getTotal()) >= 0;
 
         Payment payment = Payment.builder()
@@ -107,7 +111,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         PaymentDocument savedPayment = paymentRepository.save(
             PaymentPersistenceMapper.toDocument(payment));
 
-        // Actualizar estado de la orden según resultado del pago
+        // Si aprobado => PAID; si no => REJECTED.
         orderEntity.setStatus(approved ? OrderStatus.PAID : OrderStatus.REJECTED);
         orderRepository.save(orderEntity);
 

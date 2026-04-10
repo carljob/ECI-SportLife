@@ -21,6 +21,7 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public Cart addProduct(Long userId, Long productId, Integer quantity) {
+        // Paso 1 del flujo de carrito: validar existencia de producto y stock solicitado.
         Product product = productService.getDetail(productId);
         stockValidator.validate(product.getStock(), quantity);
 
@@ -38,6 +39,7 @@ public class CartServiceImpl implements CartService {
                 .unitPrice(product.getPrice())
                 .build());
         } else {
+            // Regla del endpoint POST /items: si el item existe, la cantidad se acumula.
             int newQuantity = existing.getQuantity() + quantity;
             stockValidator.validate(product.getStock(), newQuantity);
             existing.setQuantity(newQuantity);
@@ -58,6 +60,7 @@ public class CartServiceImpl implements CartService {
         stockValidator.validate(product.getStock(), quantity);
 
         Cart cart = getOrCreateCart(userId);
+        // Regla del endpoint PATCH /items: establece cantidad exacta (no acumulativa).
         cart.getItems().stream()
             .filter(item -> item.getProductId().equals(productId))
             .findFirst()

@@ -24,12 +24,14 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<Product> searchByName(String name) {
+        // Regla del catálogo: búsqueda case-insensitive y solo productos activos.
         return productRepository.findByNameContainingIgnoreCaseAndActiveTrue(name)
             .stream().map(ProductPersistenceMapper::toModel).collect(Collectors.toList());
     }
 
     @Override
     public List<Product> filterByCategory(String category) {
+        // Regla del catálogo: filtro por categoría ignorando mayúsculas/minúsculas.
         return productRepository.findByCategoryIgnoreCaseAndActiveTrue(category)
             .stream().map(ProductPersistenceMapper::toModel).collect(Collectors.toList());
     }

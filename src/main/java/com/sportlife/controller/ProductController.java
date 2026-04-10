@@ -20,21 +20,25 @@ public class ProductController {
 
     private final ProductService productService;
 
+    /** Requisito del enunciado: listar productos disponibles del catálogo. */
     @GetMapping
     public ResponseEntity<List<ProductResponse>> listProducts() {
         return ResponseEntity.ok(productService.listProducts().stream().map(DtoMapper::toResponse).collect(Collectors.toList()));
     }
 
+    /** Requisito del enunciado: buscar productos por nombre. */
     @GetMapping("/search")
     public ResponseEntity<List<ProductResponse>> searchByName(@RequestParam String name) {
         return ResponseEntity.ok(productService.searchByName(name).stream().map(DtoMapper::toResponse).collect(Collectors.toList()));
     }
 
+    /** Requisito del enunciado: filtrar productos por categoría. */
     @GetMapping("/category")
     public ResponseEntity<List<ProductResponse>> filterByCategory(@RequestParam String category) {
         return ResponseEntity.ok(productService.filterByCategory(category).stream().map(DtoMapper::toResponse).collect(Collectors.toList()));
     }
 
+    /** Requisito del enunciado: ver detalle completo de un producto específico. */
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> detail(@PathVariable Long id) {
         return ResponseEntity.ok(DtoMapper.toResponse(productService.getDetail(id)));
